@@ -7,7 +7,11 @@
 # When tier < T4, output instructs Claude to delegate to a cheaper model.
 # When tier = T4, output nothing (silent, let Opus handle normally).
 
-set -euo pipefail
+# Note: do NOT use set -e here. The scoring engine uses grep (exit 1 on no match)
+# and arithmetic comparisons that return exit 1 when false. These are expected
+# behavior, not errors. A hook must never crash silently.
+
+MS_LOG="${HOME}/.claude/model-selector.log"
 
 SELECTOR="${HOME}/.claude/hooks/model-selector-engine.sh"
 
@@ -17,7 +21,7 @@ if [[ ! -x "$SELECTOR" ]]; then
 fi
 
 if [[ ! -x "$SELECTOR" ]]; then
-    # Engine not found, fail silently (don't break Claude Code)
+    echo "[$(date)] ERROR: selector not found" >> "$MS_LOG" 2>/dev/null
     exit 0
 fi
 
@@ -40,16 +44,27 @@ fi
 # Get routing decision as JSON
 result=$(echo "$PROMPT" | "$SELECTOR" --json 2>/dev/null)
 if [[ -z "$result" ]]; then
+    echo "[$(date)] ERROR: selector returned empty for: ${PROMPT:0:80}" >> "$MS_LOG" 2>/dev/null
     exit 0
 fi
 
-# Parse tier from JSON
-tier=$(echo "$result" | python3 -c "import json,sys; print(json.load(sys.stdin)['tier'])" 2>/dev/null || echo "4")
-tier_name=$(echo "$result" | python3 -c "import json,sys; print(json.load(sys.stdin)['tier_name'])" 2>/dev/null || echo "T4")
-model=$(echo "$result" | python3 -c "import json,sys; print(json.load(sys.stdin)['model'])" 2>/dev/null || echo "claude:opus-4.6-1m")
-tools=$(echo "$result" | python3 -c "import json,sys; print(json.load(sys.stdin)['tools'])" 2>/dev/null || echo "REQUIRED")
-capability=$(echo "$result" | python3 -c "import json,sys; print(json.load(sys.stdin)['capability'])" 2>/dev/null || echo "HIGH")
-is_peak=$(echo "$result" | python3 -c "import json,sys; print(json.load(sys.stdin)['peak'])" 2>/dev/null || echo "false")
+# Parse all fields from JSON in a single python3 call (faster, fewer subprocesses)
+eval $(echo "$result" | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+print(f'tier={d[\"tier\"]}')
+print(f'tier_name={d[\"tier_name\"]}')
+print(f'model=\"{d[\"model\"]}\"')
+print(f'tools={d[\"tools\"]}')
+print(f'capability={d[\"capability\"]}')
+print(f'is_peak={str(d[\"peak\"]).lower()}')
+" 2>/dev/null) || {
+    tier=4; tier_name="T4"; model="claude:opus-4.6-1m"
+    tools="REQUIRED"; capability="HIGH"; is_peak="false"
+}
+
+# Log routing decision
+echo "[$(date)] ${tier_name} | ${capability} | tools=${tools} | ${PROMPT:0:80}" >> "$MS_LOG" 2>/dev/null
 
 # T4: stay silent, let Opus handle normally
 if (( tier >= 4 )); then
