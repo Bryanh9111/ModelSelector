@@ -14,6 +14,8 @@ When the UserPromptSubmit hook outputs "ModelSelector Route: T0/T1/T2/T3", you M
 
 Exception: If you determine the hook's classification is clearly wrong (e.g., a complex architecture question scored as T0), you may override with a brief explanation.
 
+**Display Rule**: When following a T0-T3 routing recommendation, output a single model indicator line before dispatching. Format: `-> [model name]` (e.g., `-> gemma4:31b`, `-> Codex gpt-5.4`, `-> Haiku 4.5`, `-> Sonnet 4.6`). No other preamble text needed.
+
 ## Architecture
 
 Dual-axis gated decision tree with static routing table. Two independent axes:
