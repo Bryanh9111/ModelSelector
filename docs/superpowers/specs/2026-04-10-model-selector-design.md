@@ -82,16 +82,18 @@ User Prompt
 
 If the prompt contains sensitive data, force local execution. Data never leaves the machine.
 
-```bash
-PRIVACY_PATTERN='\b(password|passwd|api[_-]?key|secret[_-]?key|private[_-]?key|bearer\s|token\s*=|ssn|credit[_-]?card)\b'
+**Note:** P0 runs BEFORE preprocessing (P2), so it operates on raw `$PROMPT` with `grep -i` for case-insensitivity.
 
-if echo "$prompt_lower" | grep -qiE "$PRIVACY_PATTERN"; then
+```bash
+PRIVACY_PATTERN='(password|passwd|api[_-]?key|secret[_-]?key|private[_-]?key|bearer |token *= *|ssn|credit[_-]?card)'
+
+if echo "$PROMPT" | grep -qiE "$PRIVACY_PATTERN"; then
     echo "T0"
     exit 0
 fi
 ```
 
-**Edge case:** Variable names like `api_key_validator` in code discussion should not trigger. Mitigated by code-fence stripping in P2.
+**Edge case:** Variable names like `api_key_validator` in code discussion may false-trigger at P0 since code-fence stripping hasn't run yet. Acceptable trade-off: privacy false-positive (route to T0) is safe; privacy false-negative (leak secrets) is not.
 
 ### P1: Manual Override
 
@@ -121,7 +123,8 @@ prompt_lower=$(echo "$clean_prompt" | tr '[:upper:]' '[:lower:]')
 
 # Negation proximity: suppress trigger words near negation
 # "don't refactor" should NOT score as "refactor"
-prompt_lower=$(echo "$prompt_lower" | sed -E "s/\b(don'?t|do not|no|not|avoid|without|skip)\s+\w+//g")
+# Note: BSD sed (macOS) does not support \b. Use space/start-of-line anchors instead.
+prompt_lower=$(echo "$prompt_lower" | sed -E "s/(^| )(don.t|do not|no|not|avoid|without|skip) [a-z]+//g")
 ```
 
 ### P3: Tool Dependency Gate
@@ -227,16 +230,19 @@ URGENCY_DOWN='\b(quick|fast|brief|draft|placeholder|stub|skeleton|boilerplate|sc
 # Urgency up: increase by 15%
 URGENCY_UP='\b(production[_-]?ready|enterprise|robust|thorough|careful|critical|mission[_-]?critical)\b'
 
-# Correction/escalation: increase by 20%
-CORRECTION='\b(didn.t work|wrong|still|try again|fix the previous|that.s not right|still broken|error in your)\b'
+# Note: CORRECTION is handled exclusively in P5 (post-routing tier escalation),
+# NOT here in D4 pre-routing scoring. This prevents double-counting.
+# See P5 Modifiers section for the CORRECTION pattern and logic.
 ```
 
 #### Capability Classification
 
+**Hit cap mechanics:** Each dimension has a maximum contribution (D1: 35, D2: 30, D3: 20, D4: 15). Within a dimension, each unique regex pattern match adds its points, but the dimension total is capped. For example, a prompt matching 5 D1 patterns at +8 each = 40, capped to 35. Duplicate keyword hits within a single pattern do not add points (e.g., "auth auth auth" counts as one D2 hit).
+
 ```bash
 classify_capability() {
     local score=0
-    # ... accumulate scores from D1-D4 with hit caps per dimension ...
+    # Accumulate scores from D1-D4, cap each dimension independently
 
     # Apply dampeners
     if echo "$prompt_lower" | grep -qiE "$EDUCATIONAL"; then
@@ -291,12 +297,17 @@ apply_modifiers() {
         (( tier < 4 )) && tier=$(( tier + 1 ))
     fi
 
-    # Peak hour: downshift one tier (non-Claude branch only, respect hard floors)
+    # Peak hour: downshift one tier, but NEVER below any hard floor
     if $IS_PEAK && (( tier > 0 )); then
         local min_floor=0
-        # Preserve hard floors
+        # Preserve ALL hard floors (must mirror every hard floor set above)
         echo "$prompt_lower" | grep -qiE "$EXPERT_DOMAIN" && min_floor=3
         (( PROMPT_LEN > 6000 )) && (( min_floor < 2 )) && min_floor=2
+        # Security+production hard floor: MUST be preserved during peak
+        if echo "$prompt_lower" | grep -qiE '(security|vulnerab)' && \
+           echo "$prompt_lower" | grep -qiE '(prod|production|deploy)'; then
+            min_floor=4
+        fi
 
         local new_tier=$(( tier - 1 ))
         (( new_tier < min_floor )) && new_tier=$min_floor
@@ -345,6 +356,7 @@ echo "  Recommendation: ${ACTION_GUIDANCE}"
 ### Phase 2: T0/T1 Auto-Dispatch
 - T0: Hook directly calls Ollama API and injects response (bypasses Claude entirely)
 - T1: Hook runs `codex exec` for non-tool tasks
+- **Open design question:** `UserPromptSubmit` hooks inject stdout as `additionalContext` - they do not suppress Claude's response. True bypass (Claude never processes the prompt) may require `PreToolUse` exit-code-2 blocking or a different hook event. This mechanism needs further investigation before Phase 2 implementation.
 
 ### Phase 3: Feedback Loop
 - Track routing decisions and outcomes
