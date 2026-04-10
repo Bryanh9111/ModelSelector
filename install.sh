@@ -32,29 +32,26 @@ echo -e "${GREEN}[3/4]${NC} Registering hook in settings.json..."
 if grep -q "hook-model-selector" "$CLAUDE_SETTINGS" 2>/dev/null; then
     echo -e "  ${YELLOW}Already registered, skipping${NC}"
 else
-    # Use python3 to safely modify JSON
-    python3 << 'PYEOF'
-import json, sys
+    # Use python3 to safely modify JSON (unquoted heredoc for variable expansion)
+    python3 << PYEOF
+import json
 
-settings_path = sys.argv[1] if len(sys.argv) > 1 else "${CLAUDE_SETTINGS}"
+settings_path = "${CLAUDE_SETTINGS}"
 
-with open("${CLAUDE_SETTINGS}", "r") as f:
+with open(settings_path, "r") as f:
     settings = json.load(f)
 
-# Ensure hooks.UserPromptSubmit exists
 if "hooks" not in settings:
     settings["hooks"] = {}
 if "UserPromptSubmit" not in settings["hooks"]:
     settings["hooks"]["UserPromptSubmit"] = []
 
-# Check if already registered
 already = any(
     any("hook-model-selector" in h.get("command", "") for h in entry.get("hooks", []))
     for entry in settings["hooks"]["UserPromptSubmit"]
 )
 
 if not already:
-    # Add as FIRST hook (runs before skill-router)
     settings["hooks"]["UserPromptSubmit"].insert(0, {
         "hooks": [{
             "type": "command",
@@ -62,7 +59,7 @@ if not already:
         }]
     })
 
-    with open("${CLAUDE_SETTINGS}", "w") as f:
+    with open(settings_path, "w") as f:
         json.dump(settings, f, indent=2)
     print("  -> Added to UserPromptSubmit hooks (position: first)")
 else:
