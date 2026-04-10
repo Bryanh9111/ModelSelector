@@ -26,7 +26,23 @@ if [[ ! -x "$SELECTOR" ]]; then
 fi
 
 # Read prompt from stdin
-PROMPT=$(cat)
+# Claude Code passes JSON: {"session_id":"...","transcript_path":"...","prompt":"..."}
+# Extract the prompt field; fall back to raw stdin for manual testing.
+RAW_STDIN=$(cat)
+PROMPT=$(echo "$RAW_STDIN" | python3 -c "
+import json, sys
+try:
+    d = json.load(sys.stdin)
+    print(d.get('prompt', ''), end='')
+except Exception:
+    pass
+" 2>/dev/null)
+
+# If python3 extraction failed or returned empty, use raw stdin as fallback
+if [[ -z "$PROMPT" ]]; then
+    PROMPT="$RAW_STDIN"
+fi
+
 if [[ -z "$PROMPT" ]]; then
     exit 0
 fi
@@ -49,7 +65,7 @@ if [[ -z "$result" ]]; then
 fi
 
 # Parse all fields from JSON in a single python3 call (faster, fewer subprocesses)
-eval $(echo "$result" | python3 -c "
+parse_output=$(echo "$result" | python3 -c "
 import json, sys
 d = json.load(sys.stdin)
 print(f'tier={d[\"tier\"]}')
@@ -58,10 +74,13 @@ print(f'model=\"{d[\"model\"]}\"')
 print(f'tools={d[\"tools\"]}')
 print(f'capability={d[\"capability\"]}')
 print(f'is_peak={str(d[\"peak\"]).lower()}')
-" 2>/dev/null) || {
-    tier=4; tier_name="T4"; model="claude:opus-4.6-1m"
-    tools="REQUIRED"; capability="HIGH"; is_peak="false"
-}
+" 2>/dev/null)
+
+if [[ $? -ne 0 ]]; then
+    echo "[$(date)] ERROR: JSON parse failed for: ${PROMPT:0:80}" >> "$MS_LOG" 2>/dev/null
+    exit 0
+fi
+eval "$parse_output"
 
 # Log routing decision
 echo "[$(date)] ${tier_name} | ${capability} | tools=${tools} | ${PROMPT:0:80}" >> "$MS_LOG" 2>/dev/null

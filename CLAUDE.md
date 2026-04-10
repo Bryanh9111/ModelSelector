@@ -52,11 +52,11 @@ Key: T1 (GPT-5.4) is stronger than T2 (Haiku) and comparable to T3 (Sonnet), but
 
 ## Project Structure
 
-- `src/model-selector.sh` - Core scoring engine (zero LLM tokens, regex-only, EN+ZH bilingual)
+- `src/model-selector.sh` - Core scoring engine (450+ lines zero LLM tokens, regex-only, dual-language EN+ZH pattern matching, commit f34fa97)
 - `src/hook-model-selector.sh` - UserPromptSubmit hook (Layer 2)
 - `ms.sh` - CLI wrapper (Layer 1)
 - `install.sh` - Installer (symlinks hooks, registers in settings.json, adds shell alias)
-- `tests/test-router.sh` - Test suite (25 cases covering all tiers, gates, dampeners)
+- `tests/test-router.sh` - Test suite (25 cases covering all tiers, P0-P5 gates, hard floors, dampeners, correction signal)
 - `docs/superpowers/specs/2026-04-10-model-selector-design.md` - Full design spec
 
 ## Development

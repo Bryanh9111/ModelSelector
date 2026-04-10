@@ -252,9 +252,9 @@ classify_capability() {
         score=$(( score * 80 / 100 ))
     fi
 
-    # Classify
-    if (( score >= 55 )); then echo "HIGH"
-    elif (( score >= 25 )); then echo "MID"
+    # Classify (calibrated from real-world prompts, commit 87b6c81)
+    if (( score >= 40 )); then echo "HIGH"
+    elif (( score >= 15 )); then echo "MID"
     else echo "LOW"
     fi
 }
@@ -370,13 +370,28 @@ echo "  Recommendation: ${ACTION_GUIDANCE}"
 
 ## File Structure
 
+**MVP (Phase 1 - Current):** Monolithic single-file architecture for rapid iteration and validation.
+
 ```
 ModelSelector/
   docs/
     superpowers/specs/
       2026-04-10-model-selector-design.md  (this file)
   src/
-    model-selector.sh        # main hook script
+    model-selector.sh        # scoring engine: P0-P5 gates, capability scoring, routing table
+    hook-model-selector.sh   # UserPromptSubmit hook integration
+  ms.sh                      # CLI wrapper (Layer 1)
+  install.sh                 # symlinks hooks, registers settings.json, adds alias
+  tests/
+    test-router.sh           # unit tests for routing decisions
+  CLAUDE.md                  # project instructions
+  README.md                  # documentation
+```
+
+**Phase 2+ (Future):** Modular structure with separate components.
+
+```
+  src/
     lib/
       preprocess.sh           # P2: code-fence stripping, negation handling
       privacy.sh              # P0: privacy override
@@ -388,11 +403,6 @@ ModelSelector/
     config/
       thresholds.json         # tunable scoring thresholds
       models.json             # model configs (endpoints, auth)
-  tests/
-    test-router.sh            # unit tests for routing decisions
-    fixtures/                 # sample prompts with expected tiers
-  CLAUDE.md                   # project instructions
-  README.md                   # documentation
 ```
 
 ## Design Decisions Log
