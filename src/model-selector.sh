@@ -110,21 +110,26 @@ fi
 # ============================================================
 
 TOOL_YES='(edit |fix |refactor |rewrite |implement |create file|delete file|rename |update file|modify |patch |write to|add to file|remove from file)'
+TOOL_YES_ZH='(修改|修复|重构|改写|实现|创建文件|删除文件|重命名|更新文件|编辑|写入|添加到|移除)'
 # File extensions must appear as actual filenames (word.ext), not standalone words
 TOOL_YES_FILE='(\w+\.[tj]sx?|\w+\.(py|rs|go|c|cpp|h|css|html|yaml|yml|json|toml|md|sh|sql)|(src|lib|app|pages|components|hooks|utils|tests?)/)'
 TOOL_YES_CMD='(run test|grep for|find file|read file|check lint|execute |build |deploy |commit |branch |create pr|git (add|commit|push|pull|rebase|merge|checkout|branch|log|diff|status))'
+TOOL_YES_CMD_ZH='(运行测试|查找文件|读取文件|检查|执行|构建|部署|提交|分支|跑测试|看看文件|打开文件)'
 
 TOOL_NO='(explain|what is|how (does|do|to)|why does|difference between|pros and cons|translate|summarize|brainstorm|in general|theoretically|write a plan|propose|teach me|help me understand|compare)'
+TOOL_NO_ZH='(解释|什么是|怎么|为什么|区别|优缺点|翻译|总结|头脑风暴|理论上|写个计划|建议|帮我理解|对比|比较|概念|原理)'
 
 classify_tools() {
     local p="$1"
-    # Explicit no-tool signals
-    if echo "$p" | grep -qiE "$TOOL_NO" && ! echo "$p" | grep -qiE "$TOOL_YES"; then
+    # Explicit no-tool signals (EN + ZH)
+    if (echo "$p" | grep -qiE "$TOOL_NO" || echo "$p" | grep -qE "$TOOL_NO_ZH") && \
+       ! echo "$p" | grep -qiE "$TOOL_YES" && ! echo "$p" | grep -qE "$TOOL_YES_ZH"; then
         echo "NONE"
         return
     fi
-    # Explicit tool signals
-    if echo "$p" | grep -qiE "$TOOL_YES|$TOOL_YES_FILE|$TOOL_YES_CMD"; then
+    # Explicit tool signals (EN + ZH)
+    if echo "$p" | grep -qiE "$TOOL_YES|$TOOL_YES_FILE|$TOOL_YES_CMD" || \
+       echo "$p" | grep -qE "$TOOL_YES_ZH|$TOOL_YES_CMD_ZH"; then
         echo "REQUIRED"
         return
     fi
@@ -148,7 +153,7 @@ score=0
 # --- D1: Cognitive Complexity (cap: 35) ---
 d1=0
 
-# HIGH complexity (+8 each)
+# HIGH complexity (+8 each, EN)
 for pat in \
     'architect' 'system design' 'refactor' 'migrat' \
     'optimize' 'debug' 'implement' \
@@ -157,8 +162,17 @@ for pat in \
         d1=$(( d1 + 8 ))
     fi
 done
+# HIGH complexity (+8 each, ZH)
+for pat in \
+    '架构' '系统设计' '重构' '迁移' \
+    '优化' '调试' '实现' '设计.*系统' '算法' \
+    '权衡' '逆向' '重新设计'; do
+    if echo "$PROMPT" | grep -qE "$pat"; then
+        d1=$(( d1 + 8 ))
+    fi
+done
 
-# MULTI-STEP / compound signals (+5 each)
+# MULTI-STEP / compound signals (+5 each, EN)
 for pat in \
     'then.*after' 'step [0-9]' 'first.*then.*finally' \
     'pipeline' 'orchestrat' 'end[_-]to[_-]end' 'full[_-]stack' \
@@ -168,12 +182,28 @@ for pat in \
         d1=$(( d1 + 5 ))
     fi
 done
+# MULTI-STEP (+5 each, ZH)
+for pat in \
+    '然后.*接着' '第[0-9]步' '首先.*然后.*最后' \
+    '流水线' '编排' '端到端' '全栈' \
+    '跨.*模块' '跨.*文件' '多个.*组件' \
+    '从零' '从头' '整个.*系统'; do
+    if echo "$PROMPT" | grep -qE "$pat"; then
+        d1=$(( d1 + 5 ))
+    fi
+done
 
-# LOW complexity (-5 each)
+# LOW complexity (-5 each, EN)
 for pat in \
     'how to' 'syntax' 'boilerplate' 'hello world' \
     'simple' 'basic' 'beginner' 'tutorial' 'rename' 'reformat'; do
     if echo "$prompt_lower" | grep -qiE "$pat"; then
+        d1=$(( d1 - 5 ))
+    fi
+done
+# LOW complexity (-5 each, ZH)
+for pat in '怎么用' '语法' '模板' '简单' '基础' '入门' '教程' '重命名' '格式化'; do
+    if echo "$PROMPT" | grep -qE "$pat"; then
         d1=$(( d1 - 5 ))
     fi
 done
@@ -186,20 +216,26 @@ reasons+=("D1_complexity: $d1/35")
 # --- D2: Domain Expertise & Risk (cap: 30) ---
 d2=0
 
-# EXPERT domain (+10 each)
+# EXPERT domain (+10 each, EN + ZH)
 EXPERT_DOMAIN='(cryptograph|zero[_-]?knowledge|consensus|distributed transaction|memory safety|undefined behavior|compiler|JIT|SIMD|CUDA|formal verification|type theory)'
-if echo "$prompt_lower" | grep -qiE "$EXPERT_DOMAIN"; then
+EXPERT_DOMAIN_ZH='(密码学|零知识|共识算法|分布式事务|内存安全|未定义行为|编译器|形式化验证|类型论)'
+if echo "$prompt_lower" | grep -qiE "$EXPERT_DOMAIN" || echo "$PROMPT" | grep -qE "$EXPERT_DOMAIN_ZH"; then
     d2=$(( d2 + 10 ))
 fi
 
-# HIGH RISK (+8 each)
+# HIGH RISK (+8 each, EN)
 HIGH_RISK='(auth|authorization|billing|payment|schema|migration|public api|breaking change|prod|production|security|vulnerability|exploit|xss|csrf|injection)'
 count=$(echo "$prompt_lower" | grep -oiE "$HIGH_RISK" | sort -u | wc -l | tr -d ' ')
 d2=$(( d2 + count * 8 ))
+# HIGH RISK (ZH)
+HIGH_RISK_ZH='(认证|授权|计费|支付|数据库模式|迁移|公共接口|破坏性变更|生产环境|线上|安全|漏洞|攻击)'
+count_zh=$(echo "$PROMPT" | grep -oE "$HIGH_RISK_ZH" | sort -u | wc -l | tr -d ' ')
+d2=$(( d2 + count_zh * 8 ))
 
-# SYSTEMS (+5 each)
+# SYSTEMS (+5 each, EN + ZH)
 SYSTEMS='(syscall|mmap|socket|epoll|mutex|semaphore|atomic|cache coherenc|POSIX|pthread)'
-if echo "$prompt_lower" | grep -qiE "$SYSTEMS"; then
+SYSTEMS_ZH='(系统调用|套接字|互斥锁|信号量|原子操作|缓存一致性)'
+if echo "$prompt_lower" | grep -qiE "$SYSTEMS" || echo "$PROMPT" | grep -qE "$SYSTEMS_ZH"; then
     d2=$(( d2 + 5 ))
 fi
 
@@ -217,8 +253,13 @@ reasons+=("D2_domain_risk: $d2/30")
 # --- D3: Scope & Volume (cap: 20) ---
 d3=0
 
-# Word count as scope proxy
+# Word count as scope proxy (Chinese: use char count / 2 as proxy for word count)
 local_wc=$(echo "$clean_prompt" | wc -w | tr -d ' ')
+local_cc=${#clean_prompt}
+# For Chinese text (few spaces), use character count / 2 as word equivalent
+if (( local_wc < 5 && local_cc > 10 )); then
+    local_wc=$(( local_cc / 2 ))
+fi
 if (( local_wc > 50 )); then d3=$(( d3 + 10 ))
 elif (( local_wc > 20 )); then d3=$(( d3 + 5 ))
 elif (( local_wc < 8 )); then d3=$(( d3 - 3 ))
@@ -244,39 +285,40 @@ reasons+=("D3_scope: $d3/20")
 
 # --- D4: Intent Modifiers (cap: 15) ---
 
-# Word count floor: substantial prompts (20+ words) get a minimum score
-# This prevents dampeners from reducing detailed questions to T0
-word_count=$(echo "$clean_prompt" | wc -w | tr -d ' ')
-# Detailed prompts (20+ words) are substantial enough for at least MID tier.
-# This prevents dampeners from reducing detailed questions below T1.
+# Word count floor (use local_wc which handles Chinese)
 min_score=0
-if (( word_count > 20 )); then min_score=15
+if (( local_wc > 20 )); then min_score=15
 fi
 
-# Educational dampener
+# Educational dampener (EN + ZH)
 EDUCATIONAL='(explain|teach|what is|for learning|toy example|walk me through|help me understand)'
-if echo "$prompt_lower" | grep -qiE "$EDUCATIONAL"; then
+EDUCATIONAL_ZH='(解释|教我|什么是|学习|帮我理解|讲讲|说说|介绍)'
+if echo "$prompt_lower" | grep -qiE "$EDUCATIONAL" || echo "$PROMPT" | grep -qE "$EDUCATIONAL_ZH"; then
     score=$(( score * 80 / 100 ))
     reasons+=("D4_dampener: educational -20%")
 fi
 
-# Deterministic transform dampener
+# Deterministic transform dampener (EN + ZH)
 TRANSFORM='(convert|translate|transpile|reformat|replace.*with|extract|summarize)'
-if echo "$prompt_lower" | grep -qiE "$TRANSFORM"; then
+TRANSFORM_ZH='(转换|翻译|格式化|替换|提取|总结|概括)'
+if echo "$prompt_lower" | grep -qiE "$TRANSFORM" || echo "$PROMPT" | grep -qE "$TRANSFORM_ZH"; then
     score=$(( score * 80 / 100 ))
     reasons+=("D4_dampener: transform -20%")
 fi
 
 # Urgency down
+# Urgency down (EN + ZH)
 URGENCY_DOWN='(quick|fast|brief|draft|placeholder|stub|skeleton|boilerplate|scaffold|good enough|quick and dirty)'
-if echo "$prompt_lower" | grep -qiE "$URGENCY_DOWN"; then
+URGENCY_DOWN_ZH='(快速|简单|草稿|占位|脚手架|差不多就行|凑合)'
+if echo "$prompt_lower" | grep -qiE "$URGENCY_DOWN" || echo "$PROMPT" | grep -qE "$URGENCY_DOWN_ZH"; then
     score=$(( score * 85 / 100 ))
     reasons+=("D4_dampener: urgency_down -15%")
 fi
 
-# Urgency up
+# Urgency up (EN + ZH)
 URGENCY_UP='(production[_-]?ready|enterprise|robust|thorough|careful|critical|mission[_-]?critical)'
-if echo "$prompt_lower" | grep -qiE "$URGENCY_UP"; then
+URGENCY_UP_ZH='(生产级|企业级|健壮|彻底|仔细|关键|不能出错|严格)'
+if echo "$prompt_lower" | grep -qiE "$URGENCY_UP" || echo "$PROMPT" | grep -qE "$URGENCY_UP_ZH"; then
     score=$(( score * 115 / 100 ))
     reasons+=("D4_boost: urgency_up +15%")
 fi
@@ -284,7 +326,7 @@ fi
 # Apply word count floor after dampeners
 if (( score < min_score )); then
     score=$min_score
-    reasons+=("D4_floor: word_count=$word_count -> min_score=$min_score")
+    reasons+=("D4_floor: word_count=$local_wc -> min_score=$min_score")
 fi
 
 reasons+=("score: $score/100")
@@ -351,7 +393,8 @@ fi
 
 # Correction signal: escalate one tier (P5-only, not in D4 scoring)
 CORRECTION='(didn.t work|wrong|still broken|try again|fix the previous|that.s not right|error in your|still not|that.s wrong|no that.s)'
-if echo "$prompt_lower" | grep -qiE "$CORRECTION"; then
+CORRECTION_ZH='(不对|还是不行|还是错|再试|修复上一个|不工作|出错了|有问题|不好使|挂了|坏了)'
+if echo "$prompt_lower" | grep -qiE "$CORRECTION" || echo "$PROMPT" | grep -qE "$CORRECTION_ZH"; then
     if (( tier < 4 )); then
         tier=$(( tier + 1 ))
         reasons+=("escalation: correction_signal -> +1 tier")
