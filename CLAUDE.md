@@ -8,7 +8,7 @@ When the UserPromptSubmit hook outputs "ModelSelector Route: T0/T1/T2/T3", you M
 
 - **T0**: Do NOT process with Opus. The task is trivial. Call Ollama directly via Bash (curl localhost:11434) or answer from your existing knowledge.
 - **T1**: Do NOT process with Opus. Delegate to Codex by using the codex:rescue subagent or running `codex exec --full-auto`.
-- **T2**: Do NOT process with Opus. Dispatch a Haiku sub-agent: `Agent(model: "haiku", prompt: <user's full request>)`
+- **T2**: Do NOT process with Opus. Dispatch a Sonnet sub-agent (T2 temporarily upgraded from Haiku): `Agent(model: "sonnet", prompt: <user's full request>)`
 - **T3**: Do NOT process with Opus. Dispatch a Sonnet sub-agent: `Agent(model: "sonnet", prompt: <user's full request>)`
 - **T4 or no output**: Process normally with Opus. This is the correct tier.
 

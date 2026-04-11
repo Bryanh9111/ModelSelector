@@ -146,9 +146,9 @@ case "$TIER" in
         codex exec --full-auto "$PROMPT" 2>/dev/null
         ;;
     T2)
-        # Claude Haiku
+        # Claude Sonnet (T2 temporarily routes to Sonnet instead of Haiku)
         echo -e "━━━ $(tier_color T2) ━━━"
-        claude --model haiku -p "$PROMPT"
+        claude --model sonnet -p "$PROMPT"
         ;;
     T3)
         # Claude Sonnet

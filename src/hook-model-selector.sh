@@ -114,9 +114,9 @@ case $tier in
         echo "  Do NOT process this task with Opus. Delegate to Codex (gpt-5.4)."
         ;;
     2)
-        echo "  Action: This task needs Claude tools but is simple. Use Haiku."
-        echo "  Execute: Agent(model: \"haiku\", prompt: <user's full request>)"
-        echo "  Do NOT process this task with Opus. Dispatch a Haiku sub-agent."
+        echo "  Action: This task needs Claude tools but is simple. Use Sonnet (T2 temporarily upgraded)."
+        echo "  Execute: Agent(model: \"sonnet\", prompt: <user's full request>)"
+        echo "  Do NOT process this task with Opus. Dispatch a Sonnet sub-agent."
         ;;
     3)
         echo "  Action: This task needs Claude tools at moderate complexity. Use Sonnet."
