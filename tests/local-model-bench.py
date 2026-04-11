@@ -4,7 +4,7 @@
 import json, time, os, sys, urllib.request, urllib.error, textwrap
 
 OLLAMA_URL = "http://localhost:11434/api/generate"
-MODELS = ["gemma4:31b", "qwen3.5:35b", "qwen3.5:35b-nothink"]
+MODELS = ["gemma4:31b", "qwen3:32b", "deepseek-r1:32b", "qwen3.5:35b", "qwen3.5:35b-nothink"]
 RESULTS_DIR = os.path.join(os.path.dirname(__file__), "bench-results")
 os.makedirs(RESULTS_DIR, exist_ok=True)
 

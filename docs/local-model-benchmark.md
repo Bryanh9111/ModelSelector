@@ -1,16 +1,25 @@
 # Local Model Benchmark Report
 
 Date: 2026-04-10
-Hardware: Apple Silicon (local Ollama)
+Hardware: Apple Silicon M4 Pro 48GB (local Ollama)
 Benchmark script: `tests/local-model-bench.py`
 
 ## Models Tested
 
-| Model | Size | Quantization |
-|-------|------|-------------|
-| gemma4:31b | 18.5GB | Q4_K_M |
-| qwen3.5:35b | 22.2GB | default |
-| qwen3.5:35b-nothink | 22.2GB | default |
+### Round 1 (3 models)
+
+| Model | Size | Type |
+|-------|------|------|
+| gemma4:31b | 18.5GB | dense |
+| qwen3.5:35b | 22.2GB | MoE (35B/3B active) |
+| qwen3.5:35b-nothink | 22.2GB | MoE (35B/3B active) |
+
+### Round 2 (added 2 models)
+
+| Model | Size | Type | Result |
+|-------|------|------|--------|
+| qwen3:32b | ~19GB | dense + thinking | **Removed** - thinking token timeout |
+| deepseek-r1:32b | ~19GB | dense + thinking | **Removed** - thinking token timeout |
 
 ## Test Dimensions
 
@@ -23,38 +32,52 @@ Benchmark script: `tests/local-model-bench.py`
 
 ## Speed Results (tok/s)
 
-| Test | gemma4:31b | qwen3.5:35b | qwen3.5:35b-nothink |
-|------|-----------|-------------|---------------------|
-| Code Gen | 10.9 | 30.4 | 30.1 |
-| Bug Find | 10.6 | 30.4 | 30.3 |
-| Reasoning | 10.8 | 30.1 | 29.9 |
-| Chinese | 11.3 | 29.9 | 30.0 |
-| JSON | 11.4 | 30.5 | 30.5 |
-| Refactor | 11.1 | 30.2 | 29.9 |
-
-qwen3.5 is **2.7x faster** than gemma4 in raw token generation.
+| Test | gemma4:31b | qwen3:32b | deepseek-r1:32b | qwen3.5:35b | qwen3.5:35b-nothink |
+|------|-----------|-----------|-----------------|-------------|---------------------|
+| Code Gen | 11.1 | TIMEOUT | TIMEOUT | 29.9 (empty) | 29.9 (empty) |
+| Bug Find | 11.2 | 11.7 | TIMEOUT | 30.5 | 30.2 |
+| Reasoning | 11.1 | TIMEOUT | TIMEOUT | 30.1 (empty) | 30.2 |
+| Chinese | 11.4 | 11.9 | 12.2 | 30.0 (empty) | 30.1 (empty) |
+| JSON | 11.6 | 11.9 | 12.3 | 30.2 | 30.3 |
+| Refactor | 11.3 | 11.7 | 12.2 | 30.0 (empty) | 30.0 (empty) |
 
 ## Quality Results
 
-| Test | gemma4:31b | qwen3.5:35b | qwen3.5:35b-nothink |
-|------|-----------|-------------|---------------------|
-| Code Gen | 9/10 (O(nlogn) bisect) | EMPTY | EMPTY |
-| Bug Find | 9/10 (3/3 + fixes) | 9/10 (3/3 + examples) | 8/10 (3/3 concise) |
-| Reasoning | 8/10 (correct 7 steps) | 9/10 (+ state tracking) | 8/10 (+ explanations) |
-| Chinese | 9/10 (precise, in budget) | EMPTY | EMPTY |
-| JSON | 8/10 (valid) | 8/10 (valid) | 8/10 (valid) |
-| Refactor | 9/10 (toSorted, destructuring) | EMPTY | EMPTY |
+| Test | gemma4:31b | qwen3:32b | deepseek-r1:32b | qwen3.5:35b | qwen3.5-nt |
+|------|-----------|-----------|-----------------|-------------|------------|
+| Code Gen | **9**/10 | TIMEOUT | TIMEOUT | EMPTY | EMPTY |
+| Bug Find | **9**/10 | **9**/10 | TIMEOUT | **9**/10 | 8/10 |
+| Reasoning | **8**/10 | TIMEOUT | TIMEOUT | 9/10 | 8/10 |
+| Chinese | **9**/10 | 8/10 | 7/10 | EMPTY | EMPTY |
+| JSON | **8**/10 | 8/10 | 6/10 (markdown wrapped) | 8/10 | 8/10 |
+| Refactor | **9**/10 | 7/10 (`.compare()` bug) | 8/10 | EMPTY | EMPTY |
 
-## Critical Finding: qwen3.5 Thinking Token Black Hole
+## Reliability (completion rate)
 
-qwen3.5 models (including the "nothink" variant) consume thinking tokens from the `num_predict` budget via Ollama's generate API. With `num_predict: 4096`:
+```
+gemma4:31b          ████████████ 6/6 (100%)
+qwen3.5:35b-nothink ██████       3/6 (50%)
+qwen3:32b           ██████       3/6 (50%)
+qwen3.5:35b         ██████       3/6 (50%)
+deepseek-r1:32b     ████         2/6 (33%)
+```
 
-- **Tasks producing output**: bug finding (~1200 tokens), JSON (~1300 tokens), reasoning (~2500 tokens)
-- **Tasks returning EMPTY**: code generation, refactoring, Chinese text (all hit 4096 ceiling with zero visible response)
+## Critical Finding: Thinking Token Black Hole
 
-The "nothink" variant does NOT actually disable thinking at the API level. It still generates thinking tokens internally; they are simply stripped from the response field. The token budget is consumed regardless.
+All thinking models (qwen3, qwen3.5, deepseek-r1) consume thinking tokens from the `num_predict` budget via Ollama's generate API. With `num_predict: 4096` and a 180s timeout:
 
-Evidence: A simple "What is 2+2?" query consumed 237 tokens (thinking model) and 256 tokens (nothink model) to produce a one-word answer.
+- **qwen3:32b**: 3/6 timeouts (codegen, reasoning timed out at 180s)
+- **deepseek-r1:32b**: 4/6 timeouts (worst reliability of all models)
+- **qwen3.5:35b**: 3/6 empty responses (thinking consumed all tokens)
+- **qwen3.5:35b-nothink**: 3/6 empty (nothink does NOT actually disable thinking)
+
+Evidence: A simple "What is 2+2?" query consumed 237 tokens (qwen3.5 thinking) and 256 tokens (qwen3.5 nothink) to produce a one-word answer.
+
+### Additional Issues Found in Round 2
+
+- **qwen3:32b** produced incorrect JavaScript (`a.name.compare()` instead of `localeCompare()`)
+- **deepseek-r1:32b** wrapped JSON in markdown code fences despite explicit "no markdown" instruction
+- Both dense thinking models (~12 tok/s) were no faster than gemma4 (~11 tok/s) for actual output
 
 ### Potential Fixes (Not Yet Validated)
 
@@ -62,19 +85,11 @@ Evidence: A simple "What is 2+2?" query consumed 237 tokens (thinking model) and
 2. Set `num_predict: 16384+` to give thinking sufficient headroom
 3. Use `raw` mode with custom template that suppresses `<think>` blocks
 
-## T0 Routing Recommendation
+## Decision: T0 = gemma4:31b
 
-Given these results, the ModelSelector T0 routing should use gemma4:31b as the default. Task-type-aware sub-routing within T0 is possible but adds complexity:
+gemma4:31b is the only model with 100% completion rate across all test dimensions. It is the correct and validated T0 default for ModelSelector.
 
-| Task Type | Recommended Model | Rationale |
-|-----------|------------------|-----------|
-| Code generation | gemma4:31b | qwen3.5 returns empty |
-| Code refactoring | gemma4:31b | qwen3.5 returns empty |
-| Chinese text | gemma4:31b | qwen3.5 returns empty |
-| Bug finding / code review | qwen3.5:35b-nothink | 3x faster, equal quality |
-| Reasoning / analysis | qwen3.5:35b | Deep thinking advantage |
-| JSON / structured output | qwen3.5:35b-nothink | Fast + accurate |
-| Default / unknown | gemma4:31b | Never returns empty |
+qwen3:32b and deepseek-r1:32b have been removed from local Ollama (`ollama rm`). qwen3.5:35b and qwen3.5:35b-nothink are retained as potential secondary models for short-output tasks (bug review, JSON) where their 3x speed advantage matters.
 
 ## Reproduction
 
