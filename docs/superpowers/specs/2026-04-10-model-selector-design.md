@@ -351,7 +351,7 @@ echo "  Recommendation: ${ACTION_GUIDANCE}"
 - `~/.claude/hooks/model-selector.sh` - the scoring engine
 - Regex-only, zero LLM tokens
 - Outputs recommendation into conversation context
-- Integrates with existing `skill-router.sh` (runs before or after)
+- Co-exists with other UserPromptSubmit hooks (ordering controlled via settings.json)
 
 ### Phase 2: T0/T1 Auto-Dispatch
 - T0: Hook directly calls Ollama API and injects response (bypasses Claude entirely)

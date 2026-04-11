@@ -64,23 +64,36 @@ if [[ -z "$result" ]]; then
     exit 0
 fi
 
-# Parse all fields from JSON in a single python3 call (faster, fewer subprocesses)
+# Parse JSON fields into separate lines (NUL-separated for safety)
+# Fields come from the scoring engine which derives them from prompt patterns.
+# We use read -r with explicit delimiter to avoid eval injection.
 parse_output=$(echo "$result" | python3 -c "
 import json, sys
 d = json.load(sys.stdin)
-print(f'tier={d[\"tier\"]}')
-print(f'tier_name={d[\"tier_name\"]}')
-print(f'model=\"{d[\"model\"]}\"')
-print(f'tools={d[\"tools\"]}')
-print(f'capability={d[\"capability\"]}')
-print(f'is_peak={str(d[\"peak\"]).lower()}')
+# Output tab-separated fields in fixed order: tier, tier_name, model, tools, capability, is_peak
+print('\t'.join([
+    str(d['tier']),
+    d['tier_name'],
+    d['model'],
+    d['tools'],
+    d['capability'],
+    str(d['peak']).lower(),
+]))
 " 2>/dev/null)
 
-if [[ $? -ne 0 ]]; then
+if [[ $? -ne 0 ]] || [[ -z "$parse_output" ]]; then
     echo "[$(date)] ERROR: JSON parse failed for: ${PROMPT:0:80}" >> "$MS_LOG" 2>/dev/null
     exit 0
 fi
-eval "$parse_output"
+
+# Safely read tab-separated values into named variables (no eval)
+IFS=$'\t' read -r tier tier_name model tools capability is_peak <<< "$parse_output"
+
+# Validate tier is a single digit (defense in depth)
+if ! [[ "$tier" =~ ^[0-9]$ ]]; then
+    echo "[$(date)] ERROR: invalid tier value: $tier" >> "$MS_LOG" 2>/dev/null
+    exit 0
+fi
 
 # Log routing decision
 echo "[$(date)] ${tier_name} | ${capability} | tools=${tools} | ${PROMPT:0:80}" >> "$MS_LOG" 2>/dev/null

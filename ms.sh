@@ -128,6 +128,9 @@ dispatch_custom() {
         echo -e "${RED}Error:${NC} Custom provider requires ${cmd_var} in config."
         return 1
     fi
+    # SECURITY: $cmd comes from providers.sh which the user controls.
+    # Since providers.sh is already sourced (trusted), eval is acceptable here.
+    # If you set a custom command, make sure it handles prompts via stdin.
     eval "$cmd" <<< "$prompt"
 }
 
