@@ -92,7 +92,8 @@ ollama serve
 | 16GB | gemma3:12b | default | ~7GB |
 | 32GB | gemma4:31b | Q4_K_M | ~19GB |
 | 48GB | gemma4:31b | Q4_K_M | ~19GB |
-| 64GB+ | gemma4:31b-it-q8_0 | Q8 | ~33GB |
+| 64GB | gemma4:31b-it-q8_0 | Q8 | ~33GB |
+| 128GB+ | gemma4:31b (FP16) | Full precision | ~62GB |
 
 > **Q4 vs Q8 on 48GB RAM:** We benchmarked both on a 48GB Mac across 5 tasks (code gen, math, Chinese, long-form, JSON). Q8 is **2.6x slower** (~34 tok/s vs ~89 tok/s) because the 33GB model causes memory pressure and swap. Quality difference is negligible. Q8 only makes sense on 64GB+ where the model fits comfortably in RAM.
 
