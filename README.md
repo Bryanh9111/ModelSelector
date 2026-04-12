@@ -25,6 +25,8 @@ Result: T0 -> dispatches to Ollama (free, local)
 
 Simple tasks never touch expensive models. Complex tasks get the firepower they need.
 
+**RTK integration.** Optionally pairs with [RTK (Rust Token Killer)](https://github.com/rtk-ai/rtk) for multiplicative savings: ModelSelector picks the cheapest model, RTK compresses tool output 60-90%. Combined, you pay less per token AND use fewer tokens.
+
 ## Quick Start
 
 ### Prerequisites
@@ -43,10 +45,11 @@ source ~/.zshrc  # or ~/.bashrc
 ```
 
 The installer will:
-1. Symlink the scoring engine and hook to `~/.claude/hooks/` (if Claude is available)
-2. Register the hook in Claude Code settings (if applicable)
-3. Add the `ms` alias to your shell
-4. Generate a provider config at `~/.config/model-selector/providers.sh`
+1. Detect available providers (Ollama, Claude, Codex, Amp, Gemini)
+2. Generate a provider config at `~/.config/model-selector/providers.sh`
+3. Symlink the scoring engine and hook to `~/.claude/hooks/` (if Claude is available)
+4. Detect RTK and configure the data bridge (if installed)
+5. Add the `ms` alias to your shell
 
 ### First Run
 
@@ -223,6 +226,9 @@ ms -i
 
 # Show config
 ms --config
+
+# Unified dashboard (routing + RTK compression + ROI)
+ms --stats
 ```
 
 ### Tier Aliases
@@ -282,8 +288,58 @@ Dual-axis gated decision tree. Pure regex, zero LLM tokens, runs in <10ms:
 - **P3**: Tool dependency gate (regex + IS_REPO fallback)
 - **P4**: Capability scoring (complexity + domain + scope + modifiers)
 - **P5**: Post-routing (hard floors, correction signal, peak hours)
+- **P6**: RTK integration (compression bonus, quality gate)
 
 Supports English and Chinese prompts.
+
+## RTK Integration (Optional)
+
+[RTK (Rust Token Killer)](https://github.com/rtk-ai/rtk) compresses CLI command output before it reaches the LLM context. When paired with ModelSelector, the savings are multiplicative: cheaper model x fewer tokens.
+
+### Setup
+
+```bash
+# 1. Install Rust (if not already)
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+
+# 2. Install RTK
+git clone https://github.com/rtk-ai/rtk.git
+cd rtk && cargo install --path .
+
+# 3. Register RTK hook for Claude Code
+rtk init -g
+
+# 4. Re-run ModelSelector installer (detects RTK automatically)
+cd /path/to/ModelSelector && bash install.sh
+```
+
+The installer detects RTK, symlinks the stats bridge, and generates initial stats. No further configuration needed.
+
+### How It Works Together
+
+```
+Your prompt
+  -> [ModelSelector] scores prompt, picks cheapest capable model (T0-T4)
+  -> Model runs, needs to execute commands:
+     -> [RTK] auto-rewrites: git status -> rtk git status
+     -> Output compressed 60-90% before reaching LLM context
+  -> [P6] RTK compression history feeds back into routing decisions
+```
+
+ModelSelector adjusts RTK's compression aggressiveness per tier:
+- T0 (8K context): aggressive compression (show less, fit more)
+- T4 (1M context): relaxed compression (let model see more)
+
+### Dashboard
+
+```bash
+# Unified ROI: routing stats + compression stats + combined savings
+ms --stats
+
+# RTK standalone stats
+rtk gain
+rtk gain --history
+```
 
 ## Local Model Benchmark
 
@@ -303,7 +359,7 @@ Full report: [docs/local-model-benchmark.md](docs/local-model-benchmark.md)
 ## Development
 
 ```bash
-# Run test suite (25 cases)
+# Run test suite (29 cases)
 bash tests/test-router.sh
 
 # Verbose tests
@@ -321,7 +377,7 @@ echo "your prompt" | src/model-selector.sh --verbose
 ```
 ModelSelector/
   ms.sh                          # CLI wrapper (Layer 1) - provider-agnostic
-  install.sh                     # Installer
+  install.sh                     # Installer (auto-detects providers + RTK)
   config/
     providers.sh                 # Default provider config
     examples/
@@ -330,14 +386,15 @@ ModelSelector/
       ollama-only.sh             # Free tier only
       openai-gemini.sh           # OpenAI API + Gemini
   src/
-    model-selector.sh            # Scoring engine (450+ lines, pure regex)
+    model-selector.sh            # Scoring engine (P0-P6, pure regex)
     hook-model-selector.sh       # Claude Code hook (Layer 2)
+    rtk-stats.sh                 # RTK data bridge + adaptive compression
   tests/
-    test-router.sh               # Test suite (25 cases)
+    test-router.sh               # Test suite (29 cases)
     local-model-bench.py         # Local model benchmark
   docs/
     local-model-benchmark.md     # Benchmark report
-    superpowers/specs/            # Design spec
+    debates/                     # Architecture decision records
 ```
 
 ## FAQ
