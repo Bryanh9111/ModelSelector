@@ -115,6 +115,53 @@ assert_tier "T3" "that didn't work, the rename in utils.ts still has errors" "co
 
 # ============================================================
 echo ""
+echo "P6: RTK Integration"
+# ============================================================
+
+# Create a mock rtk-stats.json for testing
+RTK_TEST_DIR="${HOME}/.config/model-selector"
+mkdir -p "$RTK_TEST_DIR"
+RTK_STATS_BACKUP=""
+if [[ -f "${RTK_TEST_DIR}/rtk-stats.json" ]]; then
+    RTK_STATS_BACKUP=$(cat "${RTK_TEST_DIR}/rtk-stats.json")
+fi
+
+# Test: RTK inactive -> no effect (T0 stays T0)
+cat > "${RTK_TEST_DIR}/rtk-stats.json" <<'EOF'
+{"rtk_active":false,"avg_savings_pct":0,"tee_recovery_rate_pct":0,"total_records_7d":0}
+EOF
+assert_tier "T0" "what is a for loop" "rtk inactive -> no routing change"
+
+# Test: high tee recovery rate -> floor at T2
+cat > "${RTK_TEST_DIR}/rtk-stats.json" <<'EOF'
+{"rtk_active":true,"avg_savings_pct":70,"tee_recovery_rate_pct":8,"total_records_7d":100}
+EOF
+assert_tier "T2" "what is a for loop" "rtk tee_recovery 8% -> min T2"
+
+# Test: high compression -> relaxes long_input floor
+# Generate a 7000-char prompt that scores MID+TOOLS_NONE (table -> T1)
+# long_input floor bumps T1 -> T2, but RTK should relax it back to T1
+LONG_PROMPT="what is a for loop $(python3 -c "print('word ' * 1400)")"
+cat > "${RTK_TEST_DIR}/rtk-stats.json" <<'EOF'
+{"rtk_active":true,"avg_savings_pct":75,"tee_recovery_rate_pct":1,"total_records_7d":100}
+EOF
+assert_tier "T1" "$LONG_PROMPT" "rtk 75% compression relaxes long_input T2->T1"
+
+# Test: RTK active but low compression -> no special treatment
+cat > "${RTK_TEST_DIR}/rtk-stats.json" <<'EOF'
+{"rtk_active":true,"avg_savings_pct":30,"tee_recovery_rate_pct":1,"total_records_7d":100}
+EOF
+assert_tier "T2" "$LONG_PROMPT" "rtk 30% compression -> long_input floor stays T2"
+
+# Restore original stats file
+if [[ -n "$RTK_STATS_BACKUP" ]]; then
+    echo "$RTK_STATS_BACKUP" > "${RTK_TEST_DIR}/rtk-stats.json"
+else
+    rm -f "${RTK_TEST_DIR}/rtk-stats.json"
+fi
+
+# ============================================================
+echo ""
 echo "━━━ Results ━━━"
 echo -e "  Total:  $total"
 echo -e "  ${GREEN}Passed: $passed${NC}"

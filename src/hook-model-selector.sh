@@ -95,8 +95,33 @@ if ! [[ "$tier" =~ ^[0-9]$ ]]; then
     exit 0
 fi
 
-# Log routing decision
-echo "[$(date)] ${tier_name} | ${capability} | tools=${tools} | ${PROMPT:0:80}" >> "$MS_LOG" 2>/dev/null
+# Log routing decision (skip prompt content when P0 privacy override fired to avoid logging secrets)
+if [[ "$tier" == "0" ]] && echo "$PROMPT" | grep -qiE '(password|passwd|api.?key|secret|token|bearer|credential|private.?key)'; then
+    echo "[$(date)] ${tier_name} | ${capability} | tools=${tools} | [REDACTED:privacy]" >> "$MS_LOG" 2>/dev/null
+else
+    echo "[$(date)] ${tier_name} | ${capability} | tools=${tools} | ${PROMPT:0:80}" >> "$MS_LOG" 2>/dev/null
+fi
+
+# RTK adaptive limits: adjust compression aggressiveness based on routed tier
+RTK_STATS_BRIDGE="${HOME}/.claude/hooks/rtk-stats.sh"
+if [[ ! -x "$RTK_STATS_BRIDGE" ]]; then
+    RTK_STATS_BRIDGE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/rtk-stats.sh"
+fi
+if [[ -x "$RTK_STATS_BRIDGE" ]]; then
+    "$RTK_STATS_BRIDGE" --adapt-limits "$tier" 2>/dev/null &
+fi
+
+# RTK quality alert: warn if tee recovery rate is high
+RTK_STATS="${HOME}/.config/model-selector/rtk-stats.json"
+RTK_ALERT=""
+if [[ -f "$RTK_STATS" ]]; then
+    RTK_ALERT=$(python3 -c "
+import json
+d = json.load(open('$RTK_STATS'))
+if d.get('rtk_active') and float(d.get('tee_recovery_rate_pct', 0)) > 5:
+    print(f\"RTK WARNING: tee recovery rate {d['tee_recovery_rate_pct']}% -- filter may be too aggressive\")
+" 2>/dev/null)
+fi
 
 # T4: stay silent, let Opus handle normally
 if (( tier >= 4 )); then
@@ -111,6 +136,10 @@ echo "  Task: ${capability} complexity, tools ${tools}"
 
 if [[ "$is_peak" == "true" || "$is_peak" == "True" ]]; then
     echo "  Peak: EST morning peak active (quota conservation mode)"
+fi
+
+if [[ -n "$RTK_ALERT" ]]; then
+    echo "  $RTK_ALERT"
 fi
 
 echo ""

@@ -386,8 +386,11 @@ if echo "$prompt_lower" | grep -qiE '(security|vulnerab)' && \
 fi
 
 # Hard floor: long input forces min T2 (T0 context too small)
+long_input_pre_tier=$tier
+long_input_triggered=false
 if (( PROMPT_LEN > 6000 )) && (( tier < 2 )); then
     tier=2
+    long_input_triggered=true
     reasons+=("floor: long_input -> min T2")
 fi
 
@@ -419,6 +422,51 @@ if $IS_PEAK && (( tier > 0 )); then
     if (( new_tier != tier )); then
         reasons+=("peak: EST morning -> T${tier} downshifted to T${new_tier}")
         tier=$new_tier
+    fi
+fi
+
+# ============================================================
+# P6: RTK INTEGRATION (optional, requires RTK history.db)
+# Reads pre-computed stats from rtk-stats.json to adjust routing.
+# ============================================================
+
+RTK_STATS="${HOME}/.config/model-selector/rtk-stats.json"
+if [[ -f "$RTK_STATS" ]]; then
+    # Parse stats via python3 (available on macOS, used elsewhere in this script)
+    rtk_data=$(python3 -c "
+import json, sys
+try:
+    d = json.load(open('$RTK_STATS'))
+    if not d.get('rtk_active', False):
+        sys.exit(0)
+    print(int(d.get('avg_savings_pct', 0)),
+          int(float(d.get('tee_recovery_rate_pct', 0))),
+          int(d.get('total_records_7d', 0)))
+except:
+    pass
+" 2>/dev/null)
+
+    if [[ -n "$rtk_data" ]]; then
+        read -r rtk_savings rtk_tee_rate rtk_records <<< "$rtk_data"
+
+        # Quality gate: high tee recovery rate means RTK is losing info
+        # Force min T2 so the model is capable enough to handle incomplete data
+        if (( rtk_tee_rate > 5 )) && (( tier < 2 )); then
+            tier=2
+            reasons+=("rtk: tee_recovery ${rtk_tee_rate}% -> min T2")
+        fi
+
+        # Compression bonus: if RTK is saving >60% of tool output tokens
+        # and has sufficient history, relax the long_input floor.
+        # RTK compresses tool outputs, so models with smaller context windows
+        # can handle longer sessions than raw prompt length suggests.
+        if (( rtk_savings > 60 )) && (( rtk_records > 50 )); then
+            if $long_input_triggered && (( PROMPT_LEN < 15000 )); then
+                tier=$long_input_pre_tier
+                reasons+=("rtk: ${rtk_savings}% compression relaxes long_input -> T${tier}")
+            fi
+            $VERBOSE && reasons+=("rtk: active (${rtk_savings}% avg savings, ${rtk_records} records)")
+        fi
     fi
 fi
 

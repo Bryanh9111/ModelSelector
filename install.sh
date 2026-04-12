@@ -129,8 +129,48 @@ else
 fi
 echo ""
 
-# ── Step 4: Shell alias ──
-echo -e "${GREEN}[4/5]${NC} Setting up CLI wrapper..."
+# ── Step 4: RTK integration (optional) ──
+echo -e "${GREEN}[4/6]${NC} RTK (Rust Token Killer) integration..."
+HAS_RTK=false
+RTK_DB=""
+
+if command -v rtk &>/dev/null; then
+    HAS_RTK=true
+    # Detect history.db location
+    if [[ -n "${RTK_DB_PATH:-}" ]] && [[ -f "$RTK_DB_PATH" ]]; then
+        RTK_DB="$RTK_DB_PATH"
+    elif [[ -f "${HOME}/Library/Application Support/rtk/history.db" ]]; then
+        RTK_DB="${HOME}/Library/Application Support/rtk/history.db"
+    elif [[ -f "${HOME}/.local/share/rtk/history.db" ]]; then
+        RTK_DB="${HOME}/.local/share/rtk/history.db"
+    fi
+fi
+
+if $HAS_RTK; then
+    echo -e "  ${GREEN}✓${NC} RTK detected"
+    if [[ -n "$RTK_DB" ]]; then
+        echo -e "  ${GREEN}✓${NC} history.db: ${RTK_DB}"
+    else
+        echo -e "  ${YELLOW}!${NC} history.db not found yet (RTK needs to run first)"
+    fi
+
+    # Symlink stats bridge
+    ln -sf "${MS_ROOT}/src/rtk-stats.sh" "${MS_CONFIG_DIR}/rtk-stats.sh"
+    echo "  -> Stats bridge: ${MS_CONFIG_DIR}/rtk-stats.sh"
+
+    # Generate initial stats
+    "${MS_ROOT}/src/rtk-stats.sh" 2>/dev/null && \
+        echo -e "  ${GREEN}✓${NC} Initial stats written" || \
+        echo -e "  ${YELLOW}!${NC} Stats generation skipped (no data yet)"
+else
+    echo -e "  ${YELLOW}✗${NC} RTK not detected (optional: install RTK for 60-90% token savings)"
+    echo "  RTK compresses tool output before it reaches the LLM context."
+    echo "  ModelSelector works without RTK, but combined savings are multiplicative."
+fi
+echo ""
+
+# ── Step 5: Shell alias ──
+echo -e "${GREEN}[5/6]${NC} Setting up CLI wrapper..."
 MS_ALIAS="alias ms='${MS_ROOT}/ms.sh'"
 
 if [[ -f "${HOME}/.zshrc" ]]; then
@@ -151,8 +191,8 @@ else
 fi
 echo ""
 
-# ── Step 5: Verify ──
-echo -e "${GREEN}[5/5]${NC} Verifying installation..."
+# ── Step 6: Verify ──
+echo -e "${GREEN}[6/6]${NC} Verifying installation..."
 if echo "hello world" | "${MS_ROOT}/src/model-selector.sh" >/dev/null 2>&1; then
     echo -e "  ${GREEN}✓${NC} Scoring engine works"
 else

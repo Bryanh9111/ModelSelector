@@ -177,6 +177,7 @@ DRY_RUN=false
 INTERACTIVE=false
 VERBOSE=false
 SHOW_CONFIG=false
+SHOW_STATS=false
 PROMPT_ARGS=()
 
 while [[ $# -gt 0 ]]; do
@@ -201,6 +202,10 @@ while [[ $# -gt 0 ]]; do
             SHOW_CONFIG=true
             shift
             ;;
+        --stats)
+            SHOW_STATS=true
+            shift
+            ;;
         --help|-h)
             echo "ms - ModelSelector CLI Wrapper"
             echo ""
@@ -211,6 +216,7 @@ while [[ $# -gt 0 ]]; do
             echo "  ms -i                         Launch interactive mode"
             echo "  ms -v \"prompt\"               Verbose output with scoring details"
             echo "  ms --config                   Show current provider configuration"
+            echo "  ms --stats                    Unified ROI dashboard (routing + RTK)"
             echo ""
             echo "Tier aliases:"
             echo "  T0 / ollama / local"
@@ -241,6 +247,105 @@ if $SHOW_CONFIG; then
     done
     echo ""
     echo -e "  Examples: ${MS_ROOT}/config/examples/"
+    exit 0
+fi
+
+# Show unified stats dashboard
+if $SHOW_STATS; then
+    echo -e "━━━ ${CYAN}ModelSelector + RTK Stats${NC} ━━━"
+    echo ""
+
+    # Refresh RTK stats
+    RTK_STATS_BRIDGE="${MS_ROOT}/src/rtk-stats.sh"
+    if [[ -x "$RTK_STATS_BRIDGE" ]]; then
+        "$RTK_STATS_BRIDGE" 2>/dev/null
+    fi
+
+    RTK_STATS="${HOME}/.config/model-selector/rtk-stats.json"
+    MS_LOG="${HOME}/.claude/model-selector.log"
+
+    # ModelSelector routing history (from log)
+    echo -e "  ${BOLD}ModelSelector Routing${NC}"
+    if [[ -f "$MS_LOG" ]]; then
+        total_routes=$(wc -l < "$MS_LOG" | tr -d ' ')
+        t0_count=$(grep -c ' T0 ' "$MS_LOG" 2>/dev/null || echo 0)
+        t1_count=$(grep -c ' T1 ' "$MS_LOG" 2>/dev/null || echo 0)
+        t2_count=$(grep -c ' T2 ' "$MS_LOG" 2>/dev/null || echo 0)
+        t3_count=$(grep -c ' T3 ' "$MS_LOG" 2>/dev/null || echo 0)
+        t4_count=$(grep -c ' T4 ' "$MS_LOG" 2>/dev/null || echo 0)
+        echo "    Total routes: $total_routes"
+        echo -e "    ${GREEN}T0${NC}: $t0_count | ${CYAN}T1${NC}: $t1_count | ${YELLOW}T2${NC}: $t2_count | ${BLUE}T3${NC}: $t3_count | ${RED}T4${NC}: $t4_count"
+
+        # Calculate savings estimate (routes NOT sent to Opus)
+        saved_routes=$(( t0_count + t1_count + t2_count + t3_count ))
+        if (( total_routes > 0 )); then
+            pct=$(python3 -c "print(round($saved_routes / $total_routes * 100, 1))" 2>/dev/null || echo "?")
+            echo "    Opus avoided: ${saved_routes}/${total_routes} (${pct}%)"
+        fi
+    else
+        echo "    No routing history yet."
+    fi
+    echo ""
+
+    # RTK compression stats
+    echo -e "  ${BOLD}RTK Token Compression${NC}"
+    if [[ -f "$RTK_STATS" ]]; then
+        python3 -c "
+import json
+d = json.load(open('$RTK_STATS'))
+if not d.get('rtk_active'):
+    print('    RTK not active (no history.db found)')
+else:
+    print(f\"    7-day avg savings: {d.get('avg_savings_pct', 0)}%\")
+    print(f\"    7-day commands: {d.get('total_records_7d', 0)}\")
+    avg_in = d.get('avg_input_tokens', 0)
+    avg_out = d.get('avg_output_tokens', 0)
+    print(f\"    Avg: {avg_in} -> {avg_out} tokens/command\")
+    print(f\"    Tee recovery rate: {d.get('tee_recovery_rate_pct', 0)}%\")
+    lt = d.get('lifetime_saved_tokens', 0)
+    lr = d.get('lifetime_records', 0)
+    print(f\"    Lifetime: {lt:,} tokens saved across {lr:,} commands\")
+    sr = d.get('session_records_1h', 0)
+    st = d.get('session_saved_tokens', 0)
+    print(f\"    Session (1h): {sr} commands, {st:,} tokens saved\")
+" 2>/dev/null
+    else
+        echo "    No RTK stats. Run: src/rtk-stats.sh --verbose"
+    fi
+    echo ""
+
+    # Combined ROI estimate
+    echo -e "  ${BOLD}Combined ROI${NC}"
+    if [[ -f "$MS_LOG" ]] && [[ -f "$RTK_STATS" ]]; then
+        python3 -c "
+import json
+
+stats = json.load(open('$RTK_STATS'))
+lifetime_saved = stats.get('lifetime_saved_tokens', 0)
+active = stats.get('rtk_active', False)
+
+# Rough cost model for Claude Max (quota-based, not dollar-based)
+# Express savings as 'Opus-equivalent tokens avoided'
+# T0/T1 dispatch saves ~all Opus tokens for that prompt
+# RTK saves input tokens that would have been in Opus context
+
+print('    Optimization layers:')
+print('      Layer 1 (ModelSelector): routes cheap tasks away from Opus')
+print('      Layer 2 (RTK): compresses tool output for all tiers')
+if active:
+    print(f\"      Combined: routing + {lifetime_saved:,} tokens compressed\")
+    rate = float(stats.get('tee_recovery_rate_pct', 0))
+    if rate > 5:
+        print(f\"      WARNING: tee recovery {rate}% -- consider relaxing RTK filters\")
+    elif rate > 0:
+        print(f\"      Quality: tee recovery {rate}% (healthy)\")
+    else:
+        print(f\"      Quality: no parse failures (excellent)\")
+else:
+    print('      RTK not active -- install RTK for 60-90% additional savings')
+" 2>/dev/null
+    fi
+    echo ""
     exit 0
 fi
 
