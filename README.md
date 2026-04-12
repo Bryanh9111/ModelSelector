@@ -417,6 +417,17 @@ Use `ms -v "your prompt"` to see the scoring breakdown. If a specific pattern ne
 **Q: Can I add my own AI provider?**
 Yes. Set `T*_PROVIDER="custom"` and `T*_CUSTOM_CMD="your-command"` in your providers.sh. The command receives the prompt via stdin.
 
+**Q: Why does Layer 2 use Agent dispatch instead of `/model` switching?**
+Claude Code's `/model` command switches the entire session to a different model but keeps the full conversation history. Agent dispatch spawns an isolated sub-agent with only a brief prompt. For Layer 2's per-message routing, dispatch wins on every axis:
+
+| | `/model` switch | Agent dispatch |
+|--|-----------------|----------------|
+| Input tokens | Full history (10K-100K+) | Brief prompt (~200-500) |
+| Scope | All subsequent messages | Single task |
+| Automation | Manual only | Hook/CLAUDE.md driven |
+| Risk | Forget to switch back | None (auto-returns) |
+| Orchestration | Cheap model decides | Opus stays in control |
+
 **Q: What about the Anthropic Advisor Tool?**
 The Advisor Tool (beta, April 2026) lets Sonnet consult Opus on hard decisions. When Claude Code CLI supports `--advisor`, ModelSelector's T3/T4 tiers can merge. We're tracking this for a future update.
 
