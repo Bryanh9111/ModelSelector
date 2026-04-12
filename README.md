@@ -95,6 +95,18 @@ ollama serve
 | 64GB | gemma4:31b-it-q8_0 | Q8 | ~33GB |
 | 128GB+ | gemma4:31b (FP16) | Full precision | ~62GB |
 
+**Qwen alternative** (stronger reasoning, but thinking models may consume output budget via Ollama):
+
+| Your RAM | Recommended Model | Quantization | Size |
+|----------|------------------|-------------|------|
+| 16GB | qwen3:8b | Q4_K_M | ~5GB |
+| 32GB | qwen3:32b | Q4_K_M | ~20GB |
+| 48GB | qwen3.5:35b | Q4_K_M | ~23GB |
+| 64GB | qwen3:32b-q8_0 | Q8 | ~34GB |
+| 128GB+ | qwen3:72b | Q4_K_M | ~42GB |
+
+> **Why gemma4 is the default:** In our [local model benchmark](docs/local-model-benchmark.md), gemma4:31b achieved 100% task completion while all Qwen thinking models scored 33-50% due to the "thinking token black hole" -- internal reasoning consumes the output token budget via Ollama's generate API. Use Qwen if you disable thinking (`-nothink` variants) or use the chat API.
+
 > **Q4 vs Q8 on 48GB RAM:** We benchmarked both on a 48GB Mac across 5 tasks (code gen, math, Chinese, long-form, JSON). Q8 is **2.6x slower** (~34 tok/s vs ~89 tok/s) because the 33GB model causes memory pressure and swap. Quality difference is negligible. Q8 only makes sense on 64GB+ where the model fits comfortably in RAM.
 
 ### Claude Code CLI (Anthropic)
