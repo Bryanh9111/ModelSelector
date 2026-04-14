@@ -78,6 +78,7 @@ print('\t'.join([
     d['tools'],
     d['capability'],
     str(d['peak']).lower(),
+    str(d.get('correction', False)).lower(),
 ]))
 " 2>/dev/null)
 
@@ -87,7 +88,7 @@ if [[ $? -ne 0 ]] || [[ -z "$parse_output" ]]; then
 fi
 
 # Safely read tab-separated values into named variables (no eval)
-IFS=$'\t' read -r tier tier_name model tools capability is_peak <<< "$parse_output"
+IFS=$'\t' read -r tier tier_name model tools capability is_peak correction <<< "$parse_output"
 
 # Validate tier is a single digit (defense in depth)
 if ! [[ "$tier" =~ ^[0-9]$ ]]; then
@@ -97,9 +98,9 @@ fi
 
 # Log routing decision (skip prompt content when P0 privacy override fired to avoid logging secrets)
 if [[ "$tier" == "0" ]] && echo "$PROMPT" | grep -qiE '(password|passwd|api.?key|secret|token|bearer|credential|private.?key)'; then
-    echo "[$(date)] ${tier_name} | ${capability} | tools=${tools} | [REDACTED:privacy]" >> "$MS_LOG" 2>/dev/null
+    echo "[$(date)] ${tier_name} | ${capability} | tools=${tools} | corr=${correction} | [REDACTED:privacy]" >> "$MS_LOG" 2>/dev/null
 else
-    echo "[$(date)] ${tier_name} | ${capability} | tools=${tools} | ${PROMPT:0:80}" >> "$MS_LOG" 2>/dev/null
+    echo "[$(date)] ${tier_name} | ${capability} | tools=${tools} | corr=${correction} | ${PROMPT:0:80}" >> "$MS_LOG" 2>/dev/null
 fi
 
 # RTK adaptive limits: adjust compression aggressiveness based on routed tier

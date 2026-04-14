@@ -397,9 +397,11 @@ fi
 # Correction signal: escalate one tier (P5-only, not in D4 scoring)
 CORRECTION='(didn.t work|wrong|still broken|try again|fix the previous|that.s not right|error in your|still not|that.s wrong|no that.s)'
 CORRECTION_ZH='(不对|还是不行|还是错|再试|修复上一个|不工作|出错了|有问题|不好使|挂了|坏了)'
+correction_fired=false
 if echo "$prompt_lower" | grep -qiE "$CORRECTION" || echo "$PROMPT" | grep -qE "$CORRECTION_ZH"; then
     if (( tier < 4 )); then
         tier=$(( tier + 1 ))
+        correction_fired=true
         reasons+=("escalation: correction_signal -> +1 tier")
     fi
 fi
@@ -488,8 +490,8 @@ if $JSON_OUTPUT; then
 import sys, json
 print(json.dumps([l.strip() for l in sys.stdin if l.strip()]))
 " 2>/dev/null || echo '[]')
-    printf '{"tier":%d,"tier_name":"%s","model":"%s","tools":"%s","capability":"%s","score":%d,"peak":%s,"reasons":%s}\n' \
-        "$tier" "$tier_name" "$model_name" "$tools_needed" "$capability" "$score" "$IS_PEAK" "$reasons_json"
+    printf '{"tier":%d,"tier_name":"%s","model":"%s","tools":"%s","capability":"%s","score":%d,"peak":%s,"correction":%s,"reasons":%s}\n' \
+        "$tier" "$tier_name" "$model_name" "$tools_needed" "$capability" "$score" "$IS_PEAK" "$correction_fired" "$reasons_json"
 elif $VERBOSE; then
     echo "━━━ ModelSelector ━━━"
     echo "  Route: $tier_name ($model_name)"

@@ -162,6 +162,33 @@ fi
 
 # ============================================================
 echo ""
+echo "JSON: correction field"
+# ============================================================
+
+# Test: correction signal sets correction=true in JSON
+total=$(( total + 1 ))
+result=$(echo "that's wrong, fix the previous error" | "$SELECTOR" --json 2>/dev/null)
+if echo "$result" | grep -q '"correction":true'; then
+    passed=$(( passed + 1 ))
+    echo -e "  ${GREEN}PASS${NC} [JSON] correction field true when correction fires"
+else
+    failed=$(( failed + 1 ))
+    echo -e "  ${RED}FAIL${NC} [JSON] correction field missing or false; got: $result"
+fi
+
+# Test: no correction signal -> correction=false in JSON
+total=$(( total + 1 ))
+result=$(echo "hello world" | "$SELECTOR" --json 2>/dev/null)
+if echo "$result" | grep -q '"correction":false'; then
+    passed=$(( passed + 1 ))
+    echo -e "  ${GREEN}PASS${NC} [JSON] correction field false for normal prompts"
+else
+    failed=$(( failed + 1 ))
+    echo -e "  ${RED}FAIL${NC} [JSON] correction field should be false; got: $result"
+fi
+
+# ============================================================
+echo ""
 echo "━━━ Results ━━━"
 echo -e "  Total:  $total"
 echo -e "  ${GREEN}Passed: $passed${NC}"

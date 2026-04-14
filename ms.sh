@@ -282,6 +282,21 @@ if $SHOW_STATS; then
             pct=$(python3 -c "print(round($saved_routes / $total_routes * 100, 1))" 2>/dev/null || echo "?")
             echo "    Opus avoided: ${saved_routes}/${total_routes} (${pct}%)"
         fi
+
+        # Correction rate analysis
+        corr_total=$(grep -c 'corr=true' "$MS_LOG" 2>/dev/null || echo 0)
+        if (( total_routes > 0 && corr_total > 0 )); then
+            corr_pct=$(python3 -c "print(round($corr_total / $total_routes * 100, 1))" 2>/dev/null || echo "?")
+            echo "    Correction signals: ${corr_total}/${total_routes} (${corr_pct}%)"
+            for t in T0 T1 T2 T3 T4; do
+                tier_total=$(grep -c " $t " "$MS_LOG" 2>/dev/null || echo 0)
+                tier_corr=$(grep " $t " "$MS_LOG" 2>/dev/null | grep -c 'corr=true' || echo 0)
+                if (( tier_corr > 0 )); then
+                    tier_pct=$(python3 -c "print(round($tier_corr / $tier_total * 100, 1))" 2>/dev/null || echo "?")
+                    echo "      ${t}: ${tier_corr}/${tier_total} (${tier_pct}%)"
+                fi
+            done
+        fi
     else
         echo "    No routing history yet."
     fi
