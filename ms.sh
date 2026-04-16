@@ -289,8 +289,8 @@ if $SHOW_STATS; then
             corr_pct=$(python3 -c "print(round($corr_total / $total_routes * 100, 1))" 2>/dev/null || echo "?")
             echo "    Correction signals: ${corr_total}/${total_routes} (${corr_pct}%)"
             for t in T0 T1 T2 T3 T4; do
-                tier_total=$(grep -c " $t " "$MS_LOG" 2>/dev/null || echo 0)
-                tier_corr=$(grep " $t " "$MS_LOG" 2>/dev/null | grep -c 'corr=true' || echo 0)
+                tier_total=$(grep -c " $t " "$MS_LOG" 2>/dev/null || true); tier_total=${tier_total:-0}
+                tier_corr=$(grep " $t " "$MS_LOG" 2>/dev/null | grep -c 'corr=true' 2>/dev/null || true); tier_corr=${tier_corr:-0}
                 if (( tier_corr > 0 )); then
                     tier_pct=$(python3 -c "print(round($tier_corr / $tier_total * 100, 1))" 2>/dev/null || echo "?")
                     echo "      ${t}: ${tier_corr}/${tier_total} (${tier_pct}%)"
