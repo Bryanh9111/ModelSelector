@@ -25,17 +25,17 @@ T1_LABEL="Codex gpt-5.4"
 # ── Tier 2: Simple tasks needing AI-native tools ──
 T2_PROVIDER="claude"
 T2_MODEL="sonnet"
-T2_LABEL="Claude Sonnet 4.6"
+T2_LABEL="Claude Sonnet"
 
 # ── Tier 3: Moderate complexity with tools ──
 T3_PROVIDER="claude"
 T3_MODEL="sonnet"
-T3_LABEL="Claude Sonnet 4.6"
+T3_LABEL="Claude Sonnet"
 
 # ── Tier 4: High complexity, flagship model ──
 T4_PROVIDER="claude"
 T4_MODEL="opus"
-T4_LABEL="Claude Opus 4.6 1M"
+T4_LABEL="Claude Opus"
 
 # ── Ollama Settings ──
 OLLAMA_URL="http://localhost:11434"

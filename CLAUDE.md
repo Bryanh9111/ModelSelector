@@ -46,9 +46,11 @@ P0 Privacy Override -> P1 Manual Override -> P2 Preprocessing (strip code fences
 |------|-------|--------|------|
 | T0 | Ollama gemma4:31b | Q4_K_M, local | $0 |
 | T1 | Codex gpt-5.4 | reasoning_effort=high | ChatGPT Plus subscription |
-| T2 | Claude Haiku 4.5 | latest | Claude Max quota (low) |
-| T3 | Claude Sonnet 4.6 | latest | Claude Max quota (mid) |
-| T4 | Claude Opus 4.6 | 1M context | Claude Max quota (high) |
+| T2 | Claude Haiku | latest | Claude Max quota (low) |
+| T3 | Claude Sonnet | latest | Claude Max quota (mid) |
+| T4 | Claude Opus | 1M context | Claude Max quota (high) |
+
+Model versions are not pinned: dispatch passes the alias (`haiku`/`sonnet`/`opus`) to `claude --model`, so tiers automatically follow whatever version the Claude CLI currently resolves the alias to.
 
 Key: T1 (GPT-5.4) is stronger than T2 (Haiku) and comparable to T3 (Sonnet), but lacks Claude Code tool access. T2 exists as the low-cost entry point for Claude's native tool chain.
 

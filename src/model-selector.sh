@@ -82,12 +82,12 @@ MODEL_OVERRIDE_PATTERN='(use|switch to|route to|prefer) +(opus|sonnet|haiku|code
 if echo "$prompt_lower" | grep -qiE "$MODEL_OVERRIDE_PATTERN"; then
     target=$(echo "$prompt_lower" | grep -oiE "$MODEL_OVERRIDE_PATTERN" | head -1 | awk '{print $NF}')
     case "$target" in
-        opus)           tier=4; model_name="claude:opus-4.6-1m" ;;
-        sonnet)         tier=3; model_name="claude:sonnet-4.6" ;;
-        haiku)          tier=2; model_name="claude:haiku-4.5" ;;
+        opus)           tier=4; model_name="claude:opus" ;;
+        sonnet)         tier=3; model_name="claude:sonnet" ;;
+        haiku)          tier=2; model_name="claude:haiku" ;;
         codex|gpt)      tier=1; model_name="codex:gpt-5.4" ;;
         ollama|local|gemma) tier=0; model_name="ollama:gemma4:31b" ;;
-        *)              tier=4; model_name="claude:opus-4.6-1m" ;;
+        *)              tier=4; model_name="claude:opus" ;;
     esac
     tier_name="T${tier}"
     route_reason="manual_override:${target}"
@@ -480,9 +480,9 @@ tier_name="T${tier}"
 case $tier in
     0) model_name="ollama:gemma4:31b" ;;
     1) model_name="codex:gpt-5.4" ;;
-    2) model_name="claude:haiku-4.5" ;;
-    3) model_name="claude:sonnet-4.6" ;;
-    4) model_name="claude:opus-4.6-1m" ;;
+    2) model_name="claude:haiku" ;;
+    3) model_name="claude:sonnet" ;;
+    4) model_name="claude:opus" ;;
 esac
 
 if $JSON_OUTPUT; then
