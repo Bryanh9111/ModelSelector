@@ -1,8 +1,10 @@
 # ModelSelector
 
+> **ARCHIVED 2026-04-28**: Layers 2 (UserPromptSubmit hook) and 3 (this CLAUDE.md directive) are decommissioned. The hook is unregistered from `~/.claude/settings.json` and will not fire, so the `ModelSelector Hook Directive` section below is **inert** -- it will not activate in any Claude Code session. Layer 1 (`ms` CLI) is functional but no longer recommended. See [docs/POSTMORTEM.md](docs/POSTMORTEM.md) for the failure analysis. Remaining content kept for historical reference.
+
 Intelligent model routing system for Claude Code. Classifies tasks and routes to the optimal model tier.
 
-## ModelSelector Hook Directive
+## ModelSelector Hook Directive (DEPRECATED -- inert)
 
 When the UserPromptSubmit hook outputs "ModelSelector Route: T0/T1/T2/T3", you MUST follow the routing recommendation:
 

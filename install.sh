@@ -17,6 +17,17 @@ NC='\033[0m'
 
 echo -e "${CYAN}━━━ ModelSelector Installer ━━━${NC}"
 echo ""
+echo -e "${RED}━━━ DEPRECATED: ModelSelector archived 2026-04-28 ━━━${NC}"
+echo -e "${YELLOW}Experimental result: in-session auto-routing (Layer 2 UserPromptSubmit hook)${NC}"
+echo -e "${YELLOW}increased token consumption rather than reducing it. Cold-start sub-agent dispatch${NC}"
+echo -e "${YELLOW}cost 5-20x more than letting the orchestrator answer directly. See README for details.${NC}"
+echo ""
+if [[ "${MS_FORCE_INSTALL:-0}" != "1" ]]; then
+    echo -e "${RED}Aborting. Set MS_FORCE_INSTALL=1 to install anyway (not recommended).${NC}"
+    exit 1
+fi
+echo -e "${YELLOW}MS_FORCE_INSTALL=1 detected, proceeding against advice...${NC}"
+echo ""
 
 # ── Step 1: Detect available providers ──
 echo -e "${GREEN}[1/5]${NC} Detecting providers..."

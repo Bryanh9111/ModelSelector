@@ -1,5 +1,28 @@
 # ModelSelector
 
+> ## ARCHIVED 2026-04-28
+>
+> **Experimental result: the auto-routing hypothesis was wrong.**
+>
+> In-session auto-routing (Layer 2 `UserPromptSubmit` hook + Layer 3 `CLAUDE.md` directive) was supposed to save tokens by dispatching simple tasks to cheaper models. In practice it **increased** total token consumption:
+>
+> - Cold-start sub-agent dispatch requires packing the full context into the sub-agent's prompt (no session memory inheritance)
+> - Sub-agent results have to be relayed back to the orchestrator and often re-explained to the user
+> - Combined cost: **5-20x more tokens** than letting the orchestrator answer directly
+> - Anthropic prompt cache (input cost ~1/10 with cache hit) and [RTK](https://github.com/rtk-ai/rtk) (60-93% tool output compression) already capture the meaningful savings without these failure modes
+>
+> **Status of components:**
+> - Layer 2 (UserPromptSubmit hook) -- **decommissioned** (removed from `~/.claude/settings.json`)
+> - Layer 3 (CLAUDE.md routing directive) -- **inert** without Layer 2 output
+> - Layer 1 (`ms` CLI wrapper) -- **functional but unused in practice**
+> - Scoring engine (`src/model-selector.sh`) -- preserved as a reference for keyword-based prompt classification
+>
+> `install.sh` now aborts unless `MS_FORCE_INSTALL=1` is set. Repository kept as a design study and warning to anyone tempted by the same hypothesis.
+>
+> **Active replacements:** RTK for tool output compression + Anthropic prompt cache for input compression. No model-selection layer needed.
+
+---
+
 **ModelSelector** is an open-source model routing system for AI coding assistants that automatically picks the cheapest capable model for each task. It scores prompts locally using pure regex pattern matching (zero LLM tokens, <10ms), classifies tasks on two axes (tool dependency and cognitive complexity), and dispatches to the optimal tier from free local models to flagship APIs.
 
 In production use, ModelSelector routes 69% of tasks away from expensive flagship models with a 0.3% misroute rate, cutting AI coding costs without sacrificing quality on complex tasks.
