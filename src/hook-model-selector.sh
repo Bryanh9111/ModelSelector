@@ -109,7 +109,9 @@ if [[ ! -x "$RTK_STATS_BRIDGE" ]]; then
     RTK_STATS_BRIDGE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/rtk-stats.sh"
 fi
 if [[ -x "$RTK_STATS_BRIDGE" ]]; then
-    "$RTK_STATS_BRIDGE" --adapt-limits "$tier" 2>/dev/null &
+    # NOTE: per-tier auto-adapt removed (2026-04-27) -- it caused config oscillation
+    # that kept tee_recovery_rate stuck >5%. Manual: src/rtk-stats.sh --adapt-limits N
+    :
 fi
 
 # RTK quality alert: warn if tee recovery rate is high
@@ -150,20 +152,24 @@ case $tier in
         echo "  Action: This task is trivial. Use Ollama locally."
         echo "  Execute: curl -s localhost:11434/api/generate with model gemma4:31b"
         echo "  Do NOT process this task with Opus. Dispatch to local LLM or answer from cache."
+        echo "  Self-audit: if you respond yourself, prepend [ROUTE-VIOLATION-T0] to your reply (visible accountability)."
         ;;
     1)
         echo "  Action: This task doesn't need Claude tools. Route to Codex."
         echo "  Execute: Use the codex:rescue subagent or run codex exec --full-auto"
         echo "  Do NOT process this task with Opus. Delegate to Codex (gpt-5.4)."
+        echo "  Self-audit: if you respond yourself, prepend [ROUTE-VIOLATION-T1] to your reply (visible accountability)."
         ;;
     2)
         echo "  Action: This task needs Claude tools but is simple. Use Sonnet (T2 temporarily upgraded)."
         echo "  Execute: Agent(model: \"sonnet\", prompt: <user's full request>)"
         echo "  Do NOT process this task with Opus. Dispatch a Sonnet sub-agent."
+        echo "  Self-audit: if you respond yourself, prepend [ROUTE-VIOLATION-T2] to your reply (visible accountability)."
         ;;
     3)
         echo "  Action: This task needs Claude tools at moderate complexity. Use Sonnet."
         echo "  Execute: Agent(model: \"sonnet\", prompt: <user's full request>)"
         echo "  Do NOT process this task with Opus. Dispatch a Sonnet sub-agent."
+        echo "  Self-audit: if you respond yourself, prepend [ROUTE-VIOLATION-T3] to your reply (visible accountability)."
         ;;
 esac

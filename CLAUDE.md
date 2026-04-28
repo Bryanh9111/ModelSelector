@@ -74,7 +74,7 @@ Test JSON output: `echo "your prompt" | src/model-selector.sh --json`
 Dry-run CLI: `ms --dry-run "your prompt"`
 Unified dashboard: `ms --stats` (routing history + RTK compression + combined ROI)
 RTK stats: `src/rtk-stats.sh --verbose` (refresh RTK stats manually)
-RTK adapt limits: `src/rtk-stats.sh --adapt-limits 0` (adjust RTK compression for tier)
+RTK adapt limits: `src/rtk-stats.sh --adapt-limits 4` (manually relax RTK compression; hook auto-call removed 2026-04-27 -- per-tier oscillation kept tee_recovery >5%)
 
 ## Design Validation
 

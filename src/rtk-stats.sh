@@ -50,7 +50,7 @@ if [[ -n "$ADAPT_TIER" ]] && [[ "$ADAPT_TIER" != "next" ]]; then
     esac
 
     # Only write if RTK config dir exists (RTK is installed)
-    if [[ -d "$RTK_CONFIG_DIR" ]]; then
+    if command -v rtk >/dev/null 2>&1; then
         # Read existing config, replace [limits] section, preserve other sections
         if [[ -f "$RTK_CONFIG" ]]; then
             # Remove existing [limits] section and rewrite

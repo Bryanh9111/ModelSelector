@@ -418,7 +418,7 @@ ModelSelector/
   src/
     model-selector.sh            # Scoring engine (P0-P6, pure regex)
     hook-model-selector.sh       # Claude Code hook (Layer 2)
-    rtk-stats.sh                 # RTK data bridge + adaptive compression
+    rtk-stats.sh                 # RTK data bridge + manual --adapt-limits CLI
   tests/
     test-router.sh               # Test suite (29 cases)
     local-model-bench.py         # Local model benchmark
