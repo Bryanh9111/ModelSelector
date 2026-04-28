@@ -150,7 +150,9 @@ WHERE timestamp > datetime('now', '-1 hour');
 SQL
 )
 
-# Tee recovery rate: parse_failures / total commands (proxy for filter aggressiveness)
+# Tee recovery rate: failed-fallback parse_failures / total commands (only counts failures
+# that actually lost data; cosmetic parse failures with fallback_succeeded=1 produced
+# correct user output via passthrough and are excluded)
 read -r total_failures failed_recoveries <<< $(
     sqlite3 -separator ' ' "$RTK_DB" <<'SQL' 2>/dev/null
 SELECT
@@ -171,10 +173,11 @@ SQL
 # Calculate tee recovery rate
 total_records=${total_records:-0}
 total_failures=${total_failures:-0}
+failed_recoveries=${failed_recoveries:-0}
 if (( total_records > 0 )); then
-    tee_recovery_rate=$(python3 -c "print(round($total_failures / ($total_records + $total_failures) * 100, 1))" 2>/dev/null || echo 0)
+    tee_recovery_rate=$(python3 -c "print(round($failed_recoveries / ($total_records + $failed_recoveries) * 100, 1))" 2>/dev/null || echo 0)
 else
-    tee_recovery_rate=0
+    printf -v tee_recovery_rate 0
 fi
 
 # Write stats JSON (atomic: temp file + mv to avoid race with concurrent reads)
