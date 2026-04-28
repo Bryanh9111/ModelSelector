@@ -19,6 +19,8 @@
 >
 > `install.sh` now aborts unless `MS_FORCE_INSTALL=1` is set. Repository kept as a design study and warning to anyone tempted by the same hypothesis.
 >
+> **Full failure analysis:** [docs/POSTMORTEM.md](docs/POSTMORTEM.md) — 18-day experiment timeline, root cause, decision matrix, and lessons.
+>
 > **Active replacements:** RTK for tool output compression + Anthropic prompt cache for input compression. No model-selection layer needed.
 
 ---
