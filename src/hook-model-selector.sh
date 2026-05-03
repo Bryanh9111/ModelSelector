@@ -60,7 +60,7 @@ fi
 # Get routing decision as JSON
 result=$(echo "$PROMPT" | "$SELECTOR" --json 2>/dev/null)
 if [[ -z "$result" ]]; then
-    echo "[$(date)] ERROR: selector returned empty for: ${PROMPT:0:80}" >> "$MS_LOG" 2>/dev/null
+    echo "[$(date)] ERROR: selector returned empty" >> "$MS_LOG" 2>/dev/null
     exit 0
 fi
 
@@ -83,7 +83,7 @@ print('\t'.join([
 " 2>/dev/null)
 
 if [[ $? -ne 0 ]] || [[ -z "$parse_output" ]]; then
-    echo "[$(date)] ERROR: JSON parse failed for: ${PROMPT:0:80}" >> "$MS_LOG" 2>/dev/null
+    echo "[$(date)] ERROR: JSON parse failed" >> "$MS_LOG" 2>/dev/null
     exit 0
 fi
 
@@ -96,11 +96,13 @@ if ! [[ "$tier" =~ ^[0-9]$ ]]; then
     exit 0
 fi
 
-# Log routing decision (skip prompt content when P0 privacy override fired to avoid logging secrets)
+# Log routing metadata only. Prompt text is intentionally omitted because user
+# prompts can contain private repo names, business context, or credentials that
+# do not match the narrow P0 privacy regex.
 if [[ "$tier" == "0" ]] && echo "$PROMPT" | grep -qiE '(password|passwd|api.?key|secret|token|bearer|credential|private.?key)'; then
     echo "[$(date)] ${tier_name} | ${capability} | tools=${tools} | corr=${correction} | [REDACTED:privacy]" >> "$MS_LOG" 2>/dev/null
 else
-    echo "[$(date)] ${tier_name} | ${capability} | tools=${tools} | corr=${correction} | ${PROMPT:0:80}" >> "$MS_LOG" 2>/dev/null
+    echo "[$(date)] ${tier_name} | ${capability} | tools=${tools} | corr=${correction} | [PROMPT_OMITTED]" >> "$MS_LOG" 2>/dev/null
 fi
 
 # RTK adaptive limits: adjust compression aggressiveness based on routed tier

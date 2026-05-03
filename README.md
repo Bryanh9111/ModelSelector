@@ -22,6 +22,8 @@
 > **Full failure analysis:** [docs/POSTMORTEM.md](docs/POSTMORTEM.md) — 18-day experiment timeline, root cause, decision matrix, and lessons.
 >
 > **Active replacements:** RTK for tool output compression + Anthropic prompt cache for input compression. No model-selection layer needed.
+>
+> **Open-source safety boundary:** do not install this archived hook unless you are deliberately studying the experiment. Forced install modifies local Claude hooks/settings and shell aliases. Provider config files are shell scripts and must be treated as trusted local code.
 
 ---
 
@@ -74,21 +76,31 @@ ModelSelector is the only approach that operates at the model selection layer. I
 - Python 3 (for JSON parsing)
 - At least one AI provider installed (see Provider Setup below)
 
-### Install
+### Historical Install (Disabled by Default)
+
+`install.sh` is intentionally disabled by default because the auto-routing experiment was decommissioned. Running it with `MS_FORCE_INSTALL=1` will modify local state:
+
+- symlink scripts into `~/.claude/hooks/`
+- update `~/.claude/settings.json` when Claude Code is installed
+- create or preserve `~/.config/model-selector/providers.sh`
+- add an `ms` alias to your shell rc file
+- optionally read aggregate RTK stats from local `history.db`
 
 ```bash
 git clone https://github.com/Bryanh9111/ModelSelector.git
 cd ModelSelector
-bash install.sh
+MS_FORCE_INSTALL=1 bash install.sh
 source ~/.zshrc  # or ~/.bashrc
 ```
 
-The installer will:
+The forced installer will:
 1. Detect available providers (Ollama, Claude, Codex, Amp, Gemini)
 2. Generate a provider config at `~/.config/model-selector/providers.sh`
 3. Symlink the scoring engine and hook to `~/.claude/hooks/` (if Claude is available)
 4. Detect RTK and configure the data bridge (if installed)
 5. Add the `ms` alias to your shell
+
+`providers.sh` is sourced by `ms.sh`, and custom providers can execute arbitrary shell commands. Only use provider configs that you wrote or reviewed.
 
 ### First Run
 

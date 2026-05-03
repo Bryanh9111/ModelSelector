@@ -1,1 +1,3 @@
 tests/bench-results/
+.DS_Store
+AGENTS.md

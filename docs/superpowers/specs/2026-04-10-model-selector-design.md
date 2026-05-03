@@ -348,7 +348,7 @@ echo "  Recommendation: ${ACTION_GUIDANCE}"
 ## Implementation Plan
 
 ### Phase 1: Shell Hook (MVP)
-- `~/.claude/hooks/model-selector.sh` - the scoring engine
+- `<claude-config-dir>/hooks/model-selector.sh` - the scoring engine
 - Regex-only, zero LLM tokens
 - Outputs recommendation into conversation context
 - Co-exists with other UserPromptSubmit hooks (ordering controlled via settings.json)
@@ -360,7 +360,7 @@ echo "  Recommendation: ${ACTION_GUIDANCE}"
 
 ### Phase 3: Feedback Loop
 - Track routing decisions and outcomes
-- Log to `~/.claude-model-selector/routing-log.jsonl`
+- Log to `<claude-config-dir>-model-selector/routing-log.jsonl`
 - Weekly retro: which routing decisions were wrong? Tune thresholds.
 
 ### Phase 4: Claude Code Skill
