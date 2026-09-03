@@ -8,11 +8,11 @@ Intelligent model routing system for Claude Code. Classifies tasks and routes to
 
 When the UserPromptSubmit hook outputs "ModelSelector Route: T0/T1/T2/T3", you MUST follow the routing recommendation:
 
-- **T0**: Do NOT process with Opus. The task is trivial. Call Ollama directly via Bash (curl localhost:11434) or answer from your existing knowledge.
-- **T1**: Do NOT process with Opus. Delegate to Codex by using the codex:rescue subagent or running `codex exec --full-auto`.
-- **T2**: Do NOT process with Opus. Dispatch a Sonnet sub-agent (T2 temporarily upgraded from Haiku): `Agent(model: "sonnet", prompt: <user's full request>)`
-- **T3**: Do NOT process with Opus. Dispatch a Sonnet sub-agent: `Agent(model: "sonnet", prompt: <user's full request>)`
-- **T4 or no output**: Process normally with Opus. This is the correct tier.
+- **T0**: Do NOT process with Fable. The task is trivial. Call Ollama directly via Bash (curl localhost:11434) or answer from your existing knowledge.
+- **T1**: Do NOT process with Fable. Delegate to Codex by using the codex:rescue subagent or running `codex exec --full-auto`.
+- **T2**: Do NOT process with Fable. Dispatch a Sonnet sub-agent (T2 temporarily upgraded from Haiku): `Agent(model: "sonnet", prompt: <user's full request>)`
+- **T3**: Do NOT process with Fable. Dispatch a Sonnet sub-agent: `Agent(model: "sonnet", prompt: <user's full request>)`
+- **T4 or no output**: Process normally with Fable. This is the correct tier.
 
 Exception: If you determine the hook's classification is clearly wrong (e.g., a complex architecture question scored as T0), you may override with a brief explanation.
 
@@ -30,7 +30,7 @@ Dual-axis gated decision tree with static routing table. Two independent axes:
 |------------|------------|----------------|
 | LOW | T0 (Ollama gemma4:31b) | T2 (Haiku 4.5) |
 | MID | T1 (Codex gpt-5.4) | T3 (Sonnet 4.6) |
-| HIGH | T3 (Sonnet 4.6) | T4 (Opus 4.6 1M) |
+| HIGH | T3 (Sonnet 4.6) | T4 (Fable 5.1 1M) |
 
 ### Gate Pipeline
 
@@ -38,8 +38,8 @@ P0 Privacy Override -> P1 Manual Override -> P2 Preprocessing (strip code fences
 
 ### Three-Layer Integration
 
-- **Layer 1 (CLI wrapper `ms`)**: Scores prompt BEFORE launching any model. `ms "prompt"` auto-routes to Ollama/Codex/Claude. Maximum token savings - Opus never starts for simple tasks.
-- **Layer 2 (UserPromptSubmit hook)**: In-session routing. When Opus is already running, hook injects a recommendation for Claude to dispatch sub-agents at lower tiers.
+- **Layer 1 (CLI wrapper `ms`)**: Scores prompt BEFORE launching any model. `ms "prompt"` auto-routes to Ollama/Codex/Claude. Maximum token savings - Fable never starts for simple tasks.
+- **Layer 2 (UserPromptSubmit hook)**: In-session routing. When Fable is already running, hook injects a recommendation for Claude to dispatch sub-agents at lower tiers.
 - **Layer 3 (CLAUDE.md directive)**: This section. Claude reads the hook output and follows routing instructions.
 
 ## Model Tiers
@@ -50,7 +50,7 @@ P0 Privacy Override -> P1 Manual Override -> P2 Preprocessing (strip code fences
 | T1 | Codex gpt-5.4 | reasoning_effort=high | ChatGPT Plus subscription |
 | T2 | Claude Haiku | latest | Claude Max quota (low) |
 | T3 | Claude Sonnet | latest | Claude Max quota (mid) |
-| T4 | Claude Opus | 1M context | Claude Max quota (high) |
+| T4 | Claude Fable 5.1 | 1M context | Claude Max quota (high) |
 
 Model versions are not pinned: dispatch passes the alias (`haiku`/`sonnet`/`opus`) to `claude --model`, so tiers automatically follow whatever version the Claude CLI currently resolves the alias to.
 
